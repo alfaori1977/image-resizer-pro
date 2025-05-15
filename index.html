@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Resizer Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .dropzone {
+            border: 2px dashed #4B5563;
+            transition: all 0.3s ease;
+        }
+
+        .dropzone.active {
+            border-color: #3B82F6;
+            background-color: rgba(59, 130, 246, 0.05);
+        }
+
+        .resize-btn {
+            background: linear-gradient(145deg, #3B82F6, #1D4ED8);
+            box-shadow: 0 4px 0 #1E40AF, 0 5px 10px rgba(0, 0, 0, 0.2);
+            transition: all 0.1s ease;
+        }
+
+        .resize-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #1E40AF;
+        }
+
+        .dimension-input {
+            -moz-appearance: textfield;
+        }
+
+        .dimension-input::-webkit-outer-spin-button,
+        .dimension-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .animate-pulse {
+            animation: pulse 2s infinite;
+        }
+
+        .image-preview {
+            background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%239C92AC' fill-opacity='0.1' fill-rule='evenodd'%3E%3Ccircle cx='3' cy='3' r='3' /%3E%3Ccircle cx='13' cy='13' r='3' /%3E%3C/g%3E%3C/svg%3E");
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Header -->
+        <header class="mb-12 text-center">
+            <h1 class="text-4xl font-bold text-blue-600 mb-2">
+                <i class="fas fa-expand-alt mr-2"></i>Image Resizer Pro
+            </h1>
+            <p class="text-lg text-gray-600 max-w-2xl mx-auto">
+                Redimensiona imágenes individuales o carpetas completas al tamaño exacto que necesites
+            </p>
+        </header>
+
+        <!-- Main Content -->
+        <main class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+            <!-- Upload Section -->
+            <div class="p-6 border-b border-gray-200">
+                <div id="dropzone"
+                    class="dropzone rounded-lg p-12 text-center cursor-pointer transition-all duration-300 hover:bg-blue-50/50">
+                    <div class="flex flex-col items-center justify-center space-y-4">
+                        <i class="fas fa-cloud-upload-alt text-5xl text-blue-400"></i>
+                        <h2 class="text-2xl font-semibold">Arrastra y suelta tus imágenes aquí</h2>
+                        <p class="text-gray-500">o haz clic para seleccionar archivos o carpetas</p>
+                        <p class="text-sm text-gray-400 mt-2">Formatos soportados: PNG, JPG, JPEG, WEBP (Máx. 100
+                            imágenes)</p>
+                    </div>
+                    <input type="file" id="fileInput" class="hidden" webkitdirectory directory multiple
+                        accept="image/*">
+                </div>
+            </div>
+
+            <!-- Settings Section -->
+            <div class="p-6 border-b border-gray-200 bg-gray-50">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-sliders-h mr-2 text-blue-500"></i> Configuración de Redimensionamiento
+                </h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Dimensions -->
+                    <div class="space-y-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="flex-1">
+                                <label for="width" class="block text-sm font-medium text-gray-700 mb-1">Ancho
+                                    (px)</label>
+                                <input type="number" id="width" min="1" value="800"
+                                    class="dimension-input w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div class="flex items-center justify-center pt-6">
+                                <i class="fas fa-times text-gray-400"></i>
+                            </div>
+                            <div class="flex-1">
+                                <label for="height" class="block text-sm font-medium text-gray-700 mb-1">Alto
+                                    (px)</label>
+                                <input type="number" id="height" min="1" value="600"
+                                    class="dimension-input w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                        </div>
+
+                        <div class="flex items-center space-x-2">
+                            <input type="checkbox" id="keepRatio"
+                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <label for="keepRatio" class="text-sm text-gray-700">Mantener proporción original</label>
+                        </div>
+                    </div>
+
+                    <!-- Options -->
+                    <div class="space-y-4">
+                        <div>
+                            <label for="resizeMethod" class="block text-sm font-medium text-gray-700 mb-1">Método de
+                                redimensionamiento</label>
+                            <select id="resizeMethod"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option value="high">Alta calidad (más lento)</option>
+                                <option value="medium" selected>Balanceado</option>
+                                <option value="low">Rápido (menos calidad)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="format" class="block text-sm font-medium text-gray-700 mb-1">Formato de
+                                salida</label>
+                            <select id="format"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option value="original">Mismo que original</option>
+                                <option value="png">PNG (sin pérdida)</option>
+                                <option value="jpeg" selected>JPEG (alta compresión)</option>
+                                <option value="webp">WebP (moderno)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Section -->
+            <div class="p-6 bg-gray-50">
+                <div class="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
+                    <div class="flex items-center space-x-2">
+                        <span id="fileCount" class="font-medium text-gray-700">0 archivos seleccionados</span>
+                        <button id="clearBtn" class="text-sm text-red-500 hover:text-red-700 hidden">
+                            <i class="fas fa-trash mr-1"></i> Limpiar
+                        </button>
+                    </div>
+
+                    <div class="flex space-x-3">
+                        <button id="previewBtn"
+                            class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                            disabled>
+                            <i class="fas fa-eye mr-2"></i> Vista previa
+                        </button>
+                        <button id="resizeBtn"
+                            class="resize-btn px-6 py-3 rounded-md text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled>
+                            <i class="fas fa-expand-alt mr-2"></i> Redimensionar imágenes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Results Section -->
+        <div id="resultsSection"
+            class="hidden mt-8 bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+            <div class="p-6 border-b border-gray-200 bg-gray-50">
+                <h2 class="text-xl font-semibold text-gray-800 flex items-center">
+                    <i class="fas fa-images mr-2 text-blue-500"></i> Resultados
+                </h2>
+            </div>
+
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                <div class="text-sm text-gray-600">
+                    <span id="processedCount">0</span> de <span id="totalCount">0</span> imágenes procesadas
+                </div>
+                <div class="flex space-x-2">
+                    <button id="downloadAllBtn"
+                        class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
+                        <i class="fas fa-download mr-1"></i> Descargar todo
+                    </button>
+                    <button id="downloadZipBtn"
+                        class="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700">
+                        <i class="fas fa-file-archive mr-1"></i> ZIP
+                    </button>
+                </div>
+            </div>
+
+            <div id="gallery" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4">
+                <!-- Preview cards will be added here -->
+            </div>
+
+            <div class="p-4 border-t border-gray-200 bg-gray-50 text-center">
+                <button id="loadMoreBtn" class="px-4 py-2 text-sm text-blue-600 hover:text-blue-800 hidden">
+                    <i class="fas fa-sync-alt mr-2"></i> Cargar más imágenes
+                </button>
+            </div>
+        </div>
+
+        <!-- How it works section -->
+        <section class="mt-12 bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+            <div class="p-6 border-b border-gray-200 bg-gray-50">
+                <h2 class="text-xl font-semibold text-gray-800 flex items-center">
+                    <i class="fas fa-question-circle mr-2 text-blue-500"></i> ¿Cómo funciona?
+                </h2>
+            </div>
+
+            <div class="p-6 grid md:grid-cols-3 gap-6">
+                <div class="flex items-start space-x-3">
+                    <div class="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <i class="fas fa-upload text-blue-600"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-gray-900">1. Carga tus imágenes</h3>
+                        <p class="mt-1 text-sm text-gray-500">Sube imágenes individuales o carpetas completas. Soporta
+                            todos los formatos comunes.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start space-x-3">
+                    <div class="flex-shrink-0 h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
+                        <i class="fas fa-ruler-combined text-purple-600"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-gray-900">2. Define el tamaño</h3>
+                        <p class="mt-1 text-sm text-gray-500">Especifica el ancho y alto exactos en píxeles. Opción para
+                            mantener proporciones.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start space-x-3">
+                    <div class="flex-shrink-0 h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                        <i class="fas fa-download text-green-600"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-gray-900">3. Descarga los resultados</h3>
+                        <p class="mt-1 text-sm text-gray-500">Obtén tus imágenes redimensionadas individualmente o en un
+                            archivo ZIP.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="mt-12 text-center text-gray-500 text-sm pb-8">
+            <div class="flex justify-center space-x-6 mb-4">
+                <a href="#" class="hover:text-blue-600"><i class="fab fa-github"></i></a>
+                <a href="#" class="hover:text-blue-600"><i class="fab fa-twitter"></i></a>
+                <a href="#" class="hover:text-blue-600"><i class="fab fa-discord"></i></a>
+            </div>
+            <p>© 2023 Image Resizer Pro. Todos los derechos reservados.</p>
+        </footer>
+    </div>
+
+    <!-- Preview Modal -->
+    <div id="previewModal"
+        class="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                <h3 class="text-lg font-medium text-gray-900">Vista previa de redimensionamiento</h3>
+                <button id="closePreviewBtn" class="text-gray-400 hover:text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="p-4 flex-1 overflow-auto">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-700 mb-2">Original</h4>
+                        <div
+                            class="image-preview bg-gray-100 rounded-lg overflow-hidden border border-gray-200 flex items-center justify-center">
+                            <img id="originalPreview" src="" alt="Original"
+                                class="max-w-full max-h-[60vh] object-contain">
+                        </div>
+                        <div class="mt-2 text-xs text-gray-500">
+                            <span id="originalDimensions"></span> -
+                            <span id="originalSize"></span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-700 mb-2">Redimensionada</h4>
+                        <div
+                            class="image-preview bg-gray-100 rounded-lg overflow-hidden border border-gray-200 flex items-center justify-center">
+                            <canvas id="resizedPreview" class="max-w-full max-h-[60vh] object-contain"></canvas>
+                        </div>
+                        <div class="mt-2 text-xs text-gray-500">
+                            <span id="resizedDimensions"></span> -
+                            <span id="resizedSize"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-gray-200 bg-gray-50 text-right">
+                <button id="confirmResizeBtn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    <i class="fas fa-check mr-2"></i> Confirmar redimensionamiento
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Processing Modal -->
+    <div id="processingModal"
+        class="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div class="text-center">
+                <div class="mx-auto h-12 w-12 text-blue-600 mb-4">
+                    <i class="fas fa-cog fa-spin text-3xl"></i>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">Procesando imágenes</h3>
+                <p class="text-sm text-gray-500 mb-4" id="processingStatus">Redimensionando imágenes...</p>
+
+                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div id="progressBar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                </div>
+                <p class="text-xs text-gray-500 mt-2 text-right" id="progressText">0% completado</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Elements
+            const dropzone = document.getElementById('dropzone');
+            const fileInput = document.getElementById('fileInput');
+            const resizeBtn = document.getElementById('resizeBtn');
+            const previewBtn = document.getElementById('previewBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            const fileCount = document.getElementById('fileCount');
+            const resultsSection = document.getElementById('resultsSection');
+            const gallery = document.getElementById('gallery');
+            const processedCount = document.getElementById('processedCount');
+            const totalCount = document.getElementById('totalCount');
+            const downloadAllBtn = document.getElementById('downloadAllBtn');
+            const downloadZipBtn = document.getElementById('downloadZipBtn');
+            const loadMoreBtn = document.getElementById('loadMoreBtn');
+            const previewModal = document.getElementById('previewModal');
+            const originalPreview = document.getElementById('originalPreview');
+            const resizedPreview = document.getElementById('resizedPreview');
+            const originalDimensions = document.getElementById('originalDimensions');
+            const originalSize = document.getElementById('originalSize');
+            const resizedDimensions = document.getElementById('resizedDimensions');
+            const resizedSize = document.getElementById('resizedSize');
+            const closePreviewBtn = document.getElementById('closePreviewBtn');
+            const confirmResizeBtn = document.getElementById('confirmResizeBtn');
+            const processingModal = document.getElementById('processingModal');
+            const processingStatus = document.getElementById('processingStatus');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const widthInput = document.getElementById('width');
+            const heightInput = document.getElementById('height');
+            const keepRatioCheckbox = document.getElementById('keepRatio');
+            const resizeMethod = document.getElementById('resizeMethod');
+            const formatSelect = document.getElementById('format');
+
+            // Variables
+            let uploadedFiles = [];
+            let displayedImages = 0;
+            const imagesPerLoad = 8;
+            let currentPreviewIndex = 0;
+            let resizedImages = [];
+
+            // Event Listeners
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropzone.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropzone.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropzone.addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight() {
+                dropzone.classList.add('active');
+            }
+
+            function unhighlight() {
+                dropzone.classList.remove('active');
+            }
+
+            dropzone.addEventListener('drop', handleDrop, false);
+            dropzone.addEventListener('click', () => fileInput.click());
+
+            fileInput.addEventListener('change', function (e) {
+                handleFiles(e.target.files);
+            });
+
+            clearBtn.addEventListener('click', clearFiles);
+            previewBtn.addEventListener('click', showPreview);
+            closePreviewBtn.addEventListener('click', () => previewModal.classList.add('hidden'));
+            confirmResizeBtn.addEventListener('click', processImages);
+            resizeBtn.addEventListener('click', processImages);
+            downloadAllBtn.addEventListener('click', downloadAll);
+            downloadZipBtn.addEventListener('click', downloadZip);
+            loadMoreBtn.addEventListener('click', loadMoreImages);
+
+            // Keep aspect ratio logic
+            let lastChanged = 'width';
+            widthInput.addEventListener('change', () => {
+                lastChanged = 'width';
+                if (keepRatioCheckbox.checked && uploadedFiles.length > 0) {
+                    updateDimensions();
+                }
+            });
+
+            heightInput.addEventListener('change', () => {
+                lastChanged = 'height';
+                if (keepRatioCheckbox.checked && uploadedFiles.length > 0) {
+                    updateDimensions();
+                }
+            });
+
+            keepRatioCheckbox.addEventListener('change', function () {
+                if (this.checked && uploadedFiles.length > 0) {
+                    updateDimensions();
+                }
+            });
+
+            function updateDimensions() {
+                if (uploadedFiles.length === 0) return;
+
+                const file = uploadedFiles[0];
+                const img = new Image();
+                img.onload = function () {
+                    const originalWidth = this.width;
+                    const originalHeight = this.height;
+                    const aspectRatio = originalWidth / originalHeight;
+
+                    if (lastChanged === 'width') {
+                        const newWidth = parseInt(widthInput.value);
+                        const newHeight = Math.round(newWidth / aspectRatio);
+                        heightInput.value = newHeight;
+                    } else {
+                        const newHeight = parseInt(heightInput.value);
+                        const newWidth = Math.round(newHeight * aspectRatio);
+                        widthInput.value = newWidth;
+                    }
+                };
+                img.src = URL.createObjectURL(file);
+            }
+
+            // File handling
+            function handleFiles(files) {
+                const newFiles = Array.from(files).filter(file =>
+                    file.type.startsWith('image/') &&
+                    ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'].includes(file.type)
+                );
+
+                if (newFiles.length > 0) {
+                    uploadedFiles = [...uploadedFiles, ...newFiles];
+                    updateFileCount();
+                    resizeBtn.disabled = false;
+                    previewBtn.disabled = false;
+                    clearBtn.classList.remove('hidden');
+                    showNotification(`Se han agregado ${newFiles.length} imágenes`);
+
+                    if (keepRatioCheckbox.checked) {
+                        updateDimensions();
+                    }
+                } else {
+                    showNotification('Por favor, sube solo imágenes (PNG, JPG, JPEG, WEBP)', 'error');
+                }
+            }
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                handleFiles(files);
+            }
+            function clearFiles() {
+                // Existing resets
+                uploadedFiles = [];
+                fileInput.value = ''; // Clear the file input element's stored files
+
+                // Reset data arrays
+                resizedImages = []; // Crucial: Clear the array holding processed image data
+
+                // Reset display counters
+                displayedImages = 0;
+
+                // Update UI counts (fileCount is for selection, totalCount is also used in results header)
+                updateFileCount(); // This should set fileCount.textContent and totalCount.textContent to 0
+
+                // Disable/hide buttons
+                resizeBtn.disabled = true;
+                previewBtn.disabled = true;
+                clearBtn.classList.add('hidden');
+
+                // Clear and hide the results section
+                resultsSection.classList.add('hidden');
+                gallery.innerHTML = ''; // Crucial: Clear all previously displayed image cards from the DOM
+                loadMoreBtn.classList.add('hidden'); // Ensure "load more" is hidden
+
+                // Explicitly reset result-specific counters in the UI
+                processedCount.textContent = '0';
+                // totalCount.textContent should be handled by updateFileCount when uploadedFiles is empty.
+
+                // Optional: Revoke Object URLs from previous resizedImages if they were stored and accessible
+                // This is good for memory management but more complex to implement retroactively.
+                // If your resizedImages array contained objects with `previewUrl`, you would iterate
+                // through it *before* clearing it to revoke `URL.revokeObjectURL(imageData.previewUrl)`.
+                // For now, clearing `gallery.innerHTML` and `resizedImages = []` is the main fix.
+
+                showNotification('Archivos eliminados y selección reiniciada');
+            }
+
+            function updateFileCount() {
+                fileCount.textContent = `${uploadedFiles.length} archivo${uploadedFiles.length !== 1 ? 's' : ''} seleccionado${uploadedFiles.length !== 1 ? 's' : ''}`;
+                totalCount.textContent = uploadedFiles.length;
+            }
+
+            // Preview functionality
+            function showPreview() {
+                if (uploadedFiles.length === 0) return;
+
+                currentPreviewIndex = 0;
+                showImagePreview(currentPreviewIndex);
+                previewModal.classList.remove('hidden');
+            }
+
+            function showImagePreview(index) {
+                const file = uploadedFiles[index];
+                const img = new Image();
+                img.onload = function () {
+                    // Show original image info
+                    originalPreview.src = URL.createObjectURL(file);
+                    originalDimensions.textContent = `${this.width}×${this.height} px`;
+                    originalSize.textContent = formatFileSize(file.size);
+
+                    // Calculate new dimensions
+                    const targetWidth = parseInt(widthInput.value);
+                    const targetHeight = parseInt(heightInput.value);
+
+                    // Create resized preview
+                    const canvas = resizedPreview;
+                    const ctx = canvas.getContext('2d');
+
+                    // Set canvas size to target dimensions
+                    canvas.width = targetWidth;
+                    canvas.height = targetHeight;
+
+                    // Draw resized image
+                    ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+
+                    // Show resized info
+                    resizedDimensions.textContent = `${targetWidth}×${targetHeight} px`;
+
+                    // Estimate file size after resizing
+                    canvas.toBlob(blob => {
+                        resizedSize.textContent = formatFileSize(blob.size);
+                    }, 'image/jpeg', 0.9);
+                };
+                img.src = URL.createObjectURL(file);
+            }
+
+            // Processing images
+            function processImages() {
+                if (uploadedFiles.length === 0) {
+                    showNotification('No hay archivos para procesar.', 'error');
+                    return;
+                }
+
+                // --- Start of Safeguards ---
+                gallery.innerHTML = '';      // Ensure gallery display is empty
+                displayedImages = 0;       // Reset displayed images counter
+                loadMoreBtn.classList.add('hidden'); // Hide load more button initially
+                // --- End of Safeguards ---
+
+                previewModal.classList.add('hidden');
+                processingModal.classList.remove('hidden');
+                // resultsSection.classList.remove('hidden'); // This should be visible once processing starts
+
+                const targetWidth = parseInt(widthInput.value);
+                const targetHeight = parseInt(heightInput.value);
+                const outputFormat = formatSelect.value;
+
+                let processed = 0;
+                resizedImages = [];
+
+                totalCount.textContent = uploadedFiles.length; // Update total count for results section
+                processedCount.textContent = '0'; // Reset processed count for results section
+                resultsSection.classList.remove('hidden'); // Now show the results section
+
+                // Process images in batches to avoid blocking the UI
+                const batchSize = 5;
+                let currentBatch = 0;
+
+                function processBatch() {
+                    const start = currentBatch * batchSize;
+                    const end = Math.min(start + batchSize, uploadedFiles.length);
+
+                    for (let i = start; i < end; i++) {
+                        processImage(uploadedFiles[i], targetWidth, targetHeight, outputFormat)
+                            .then(resizedImage => {
+                                resizedImages.push(resizedImage);
+                                processed++;
+
+                                // Update progress
+                                const progress = Math.round((processed / uploadedFiles.length) * 100);
+                                progressBar.style.width = `${progress}%`;
+                                progressText.textContent = `${progress}% completado`;
+                                processingStatus.textContent = `Procesando ${processed} de ${uploadedFiles.length} imágenes...`;
+
+                                // Update gallery
+                                if (processed <= imagesPerLoad) {
+                                    addImageToGallery(resizedImage);
+                                }
+
+                                // Update counters
+                                processedCount.textContent = processed;
+
+                                // If all done
+                                if (processed === uploadedFiles.length) {
+                                    processingModal.classList.add('hidden');
+
+                                    if (uploadedFiles.length > imagesPerLoad) {
+                                        loadMoreBtn.classList.remove('hidden');
+                                    }
+                                }
+                            });
+                    }
+
+                    currentBatch++;
+                    if (end < uploadedFiles.length) {
+                        setTimeout(processBatch, 0);
+                    }
+                }
+
+                processBatch();
+            }
+
+            async function processImage(file, targetWidth, targetHeight, outputFormat) {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.onload = function () {
+                        let tempCanvas; // Renamed from canvas to avoid conflict with global canvas
+                        try {
+                            tempCanvas = document.createElement('canvas');
+                            tempCanvas.width = targetWidth;
+                            tempCanvas.height = targetHeight;
+                            const ctx = tempCanvas.getContext('2d');
+
+                            if (resizeMethod.value === 'high') {
+                                ctx.imageSmoothingEnabled = true;
+                                ctx.imageSmoothingQuality = 'high';
+                            } else if (resizeMethod.value === 'low') {
+                                ctx.imageSmoothingEnabled = false;
+                            } else {
+                                ctx.imageSmoothingEnabled = true;
+                                ctx.imageSmoothingQuality = 'medium';
+                            }
+
+                            ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+                            URL.revokeObjectURL(img.src); // Revoke original file object URL
+
+                            let mimeType = 'image/jpeg';
+                            let extension = 'jpg';
+                            if (outputFormat === 'original') {
+                                mimeType = file.type;
+                                const originalExt = file.name.split('.').pop();
+                                if (originalExt) extension = originalExt.toLowerCase();
+                            } else if (outputFormat === 'png') {
+                                mimeType = 'image/png';
+                                extension = 'png';
+                            } else if (outputFormat === 'webp') {
+                                mimeType = 'image/webp';
+                                extension = 'webp';
+                            }
+
+                            const quality = (mimeType === 'image/jpeg' || mimeType === 'image/webp') ? 0.9 : undefined; // Pass undefined for PNG
+
+                            tempCanvas.toBlob(blob => {
+                                if (!blob) {
+                                    console.error("Canvas toBlob returned null for", file.name);
+                                    reject(new Error(`Error al crear blob para: ${file.name}`));
+                                    return;
+                                }
+                                const resizedFile = new File([blob], getOutputFilename(file.name, outputFormat, extension), {
+                                    type: mimeType
+                                });
+
+                                resolve({
+                                    original: file,
+                                    resized: resizedFile,
+                                    previewUrl: URL.createObjectURL(blob), // Create preview from this blob
+                                    dimensions: `${targetWidth}×${targetHeight}`,
+                                    size: formatFileSize(blob.size)
+                                });
+                            }, mimeType, quality);
+
+                        } catch (e) {
+                            console.error("Error en processImage onload:", e, "para archivo:", file.name);
+                            if (img.src && img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
+                            reject(new Error(`Error procesando ${file.name}: ${e.message}`));
+                        }
+                    };
+                    img.onerror = function () {
+                        URL.revokeObjectURL(img.src); // Revoke on error
+                        console.error("No se pudo cargar la imagen para procesar:", file.name);
+                        reject(new Error(`No se pudo cargar la imagen: ${file.name}`));
+                    };
+
+                    if (!file || typeof file.type === 'undefined') {
+                        console.error("Archivo inválido o sin tipo:", file);
+                        return reject(new Error("Archivo inválido proporcionado a processImage."));
+                    }
+                    img.src = URL.createObjectURL(file);
+                });
+            }
+
+            // Modify getOutputFilename to accept the determined extension
+            function getOutputFilename(filename, outputFormat, determinedExtension) {
+                const dotIndex = filename.lastIndexOf('.');
+                const nameWithoutExt = dotIndex > 0 ? filename.substring(0, dotIndex) : filename;
+
+                if (outputFormat === 'original') {
+                    return filename; // Keep original name and extension
+                }
+                // This ensures that if filename is "02.jpg" and determinedExtension is "png",
+                // it returns "02.png"
+                return `${nameWithoutExt}.${determinedExtension}`;
+            }
+            function addImageToGallery(imageData) {
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-lg overflow-hidden border border-gray-200 hover:shadow-md transition-shadow';
+
+                // Determine the output type for display
+                const outputType = imageData.resized.type.split('/')[1]?.toUpperCase() || 'N/A';
+
+                card.innerHTML = `
+                    <div class="relative pt-[100%] bg-gray-100 image-preview"> 
+                        <img src="${imageData.previewUrl}" alt="Redimensionada: ${imageData.resized.name}" class="absolute inset-0 w-full h-full object-contain p-2">
+                    </div>
+                    <div class="p-3">
+                        <div class="flex justify-between items-start">
+                            <div class="text-sm overflow-hidden mr-2">
+                                <p class="font-medium text-gray-900 truncate" title="${imageData.resized.name}">${imageData.resized.name}</p>
+                                <p class="text-xs text-gray-500">${imageData.dimensions} px</p>
+                            </div>
+                            <button 
+                                class="download-btn flex-shrink-0 px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700" 
+                                title="Descargar ${imageData.resized.name}">
+                                <i class="fas fa-download mr-1"></i>
+                            </button>
+                        </div>
+                        <div class="mt-2 flex justify-between items-center">
+                            <span class="text-xs text-gray-500" title="Tamaño del archivo redimensionado">${imageData.size}</span>
+                            <span class="text-xs px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-700" title="Formato de salida">${outputType}</span>
+                            <span 
+                                class="text-xs px-2 py-0.5 rounded-full ${imageData.resized.size < imageData.original.size ? 'bg-green-100 text-green-800' : (imageData.resized.size > imageData.original.size ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800')}"
+                                title="Porcentaje del tamaño original">
+                                ${Math.round((imageData.resized.size / imageData.original.size) * 100)}%
+                            </span>
+                        </div>
+                    </div>
+                `;
+
+                gallery.appendChild(card);
+
+                // Add event listener to the download button (ensure imageData is correctly scoped)
+                const downloadButton = card.querySelector('.download-btn');
+                downloadButton.addEventListener('click', () => {
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(imageData.resized); // Use the blob URL from resized for direct download
+                    a.download = imageData.resized.name;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(a.href); // Clean up the object URL
+                    showNotification(`Imagen descargada: ${imageData.resized.name}`);
+                });
+            }
+            // Gallery functions
+            function addImageToGalleryOld(imageData) {
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-lg overflow-hidden border border-gray-200 hover:shadow-md transition-shadow';
+
+                card.innerHTML = `
+                    <div class="relative pt-[100%] bg-gray-100">
+                        <img src="${imageData.previewUrl}" alt="Redimensionada" class="absolute inset-0 w-full h-full object-contain p-2">
+                    </div>
+                    <div class="p-3">
+                        <div class="flex justify-between items-start">
+                            <div class="text-sm">
+                                <p class="font-medium text-gray-900 truncate">${imageData.original.name}</p>
+                                <p class="text-xs text-gray-500">${imageData.dimensions} px</p>
+                            </div>
+                            <button class="download-btn px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700" data-index="${resizedImages.length - 1}">
+                                <i class="fas fa-download mr-1"></i>
+                            </button>
+                        </div>
+                        <div class="mt-2 flex justify-between items-center">
+                            <span class="text-xs text-gray-500">${imageData.size}</span>
+                            <span class="text-xs px-2 py-0.5 rounded-full ${imageData.resized.size < imageData.original.size ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
+                                ${Math.round((imageData.resized.size / imageData.original.size) * 100)}%
+                            </span>
+                        </div>
+                    </div>
+                `;
+
+                gallery.appendChild(card);
+
+                // Add event listener to the download button
+                card.querySelector('.download-btn').addEventListener('click', function () {
+                    downloadImage(parseInt(this.getAttribute('data-index')));
+                });
+            }
+
+            function loadMoreImages() {
+                const start = displayedImages;
+                const end = Math.min(displayedImages + imagesPerLoad, resizedImages.length);
+
+                for (let i = start; i < end; i++) {
+                    addImageToGallery(resizedImages[i]);
+                }
+
+                displayedImages = end;
+
+                if (displayedImages >= resizedImages.length) {
+                    loadMoreBtn.classList.add('hidden');
+                }
+            }
+
+            // Download functions
+            function downloadImage(index) {
+                const imageData = resizedImages[index];
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(imageData.resized);
+                a.download = imageData.resized.name;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                showNotification(`Imagen descargada: ${imageData.resized.name}`);
+            }
+
+            function downloadAll() {
+                if (resizedImages.length === 0) return;
+
+                // Create a temporary folder link for each image
+                resizedImages.forEach(imageData => {
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(imageData.resized);
+                    a.download = imageData.resized.name;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                });
+
+                showNotification(`Descargadas ${resizedImages.length} imágenes`);
+            }
+            async function downloadZip() {
+                if (resizedImages.length === 0) {
+                    showNotification('No hay imágenes para comprimir.', 'error');
+                    return;
+                }
+
+                showNotification('Preparando archivo ZIP...');
+                processingModal.classList.remove('hidden');
+                processingStatus.textContent = 'Iniciando compresión...';
+                progressBar.style.width = '0%';
+                progressText.textContent = '0% (0/' + resizedImages.length + ')';
+
+                const zip = new JSZip();
+                let filesZippedSuccessfully = 0;
+
+                for (let i = 0; i < resizedImages.length; i++) {
+                    const imageData = resizedImages[i];
+                    processingStatus.textContent = `Añadiendo ${imageData.resized.name} al zip...`;
+                    try {
+                        // Ensure imageData.resized is a valid File/Blob object
+                        if (imageData.resized && typeof imageData.resized.name === 'string' && imageData.resized.size > 0) {
+                            zip.file(imageData.resized.name, imageData.resized, { binary: true }); // Added { binary: true } for good measure
+                            filesZippedSuccessfully++;
+                        } else {
+                            console.warn("Archivo redimensionado inválido o vacío omitido:", imageData.original.name, imageData.resized);
+                            showNotification(`Advertencia: ${imageData.original.name} parece inválido y fue omitido del ZIP.`, 'warning');
+                        }
+                    } catch (error) {
+                        console.error("Error al añadir archivo al ZIP:", imageData.resized.name, error);
+                        showNotification(`Error añadiendo ${imageData.resized.name} al ZIP. Será omitido.`, 'error');
+                    }
+
+                    const progress = Math.round((i + 1) / resizedImages.length * 100);
+                    progressBar.style.width = `${progress}%`;
+                    progressText.textContent = `${progress}% (${i + 1}/${resizedImages.length})`;
+
+                    if ((i + 1) % 5 === 0) { // Update UI and yield more frequently
+                        await new Promise(resolve => setTimeout(resolve, 0));
+                    }
+                }
+
+                if (filesZippedSuccessfully === 0) {
+                    processingModal.classList.add('hidden');
+                    showNotification('Ningún archivo pudo ser añadido al ZIP.', 'error');
+                    return;
+                }
+
+                processingStatus.textContent = 'Generando archivo ZIP... Esto puede tardar.';
+                progressText.textContent = ''; // Clear file count for this stage
+
+                try {
+                    // Provide compression options, especially for larger files if performance is an issue
+                    const zipContent = await zip.generateAsync(
+                        {
+                            type: "blob",
+                            compression: "DEFLATE", // Standard compression
+                            compressionOptions: {
+                                level: 6 // Default is 6 (balances speed and compression)
+                            }
+                        },
+                        function updateCallback(metadata) {
+                            const progress = metadata.percent;
+                            progressBar.style.width = `${progress}%`;
+                            if (metadata.currentFile) {
+                                processingStatus.textContent = `Comprimiendo: ${metadata.currentFile} (${Math.round(progress)}%)`;
+                            } else {
+                                processingStatus.textContent = `Comprimiendo: ${Math.round(progress)}%`;
+                            }
+                        }
+                    );
+
+                    if (zipContent.size === 0) {
+                        showNotification('El ZIP generado está vacío. Algo salió mal.', 'error');
+                        processingModal.classList.add('hidden');
+                        return;
+                    }
+
+                    const a = document.createElement('a');
+                    const objectURL = URL.createObjectURL(zipContent);
+                    a.href = objectURL;
+                    a.download = 'imagenes_redimensionadas.zip';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(objectURL); // Clean up blob URL
+
+                    showNotification(`ZIP con ${filesZippedSuccessfully} imágenes creado y descarga iniciada.`, 'success');
+                } catch (error) {
+                    console.error("Error al generar el ZIP:", error);
+                    showNotification('Error crítico al generar el archivo ZIP. Revise la consola.', 'error');
+                } finally {
+                    processingModal.classList.add('hidden');
+                }
+            }
+
+            // Helper functions
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            function showNotification(message, type = 'success') {
+                const notification = document.createElement('div');
+                notification.className = `fixed bottom-4 right-4 px-4 py-3 rounded-md shadow-lg flex items-center ${type === 'success' ? 'bg-green-600' : 'bg-red-600'
+                    } text-white text-sm`;
+
+                notification.innerHTML = `
+                    <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle'} mr-2"></i>
+                    ${message}
+                `;
+
+                document.body.appendChild(notification);
+
+                setTimeout(() => {
+                    notification.classList.add('opacity-0', 'transition-opacity', 'duration-300');
+                    setTimeout(() => notification.remove(), 300);
+                }, 3000);
+            }
+        });
+    </script>
+</body>
+
+</html>
